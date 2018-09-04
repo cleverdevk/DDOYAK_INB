@@ -62,23 +62,19 @@ def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut):
         Outinglist.append(fcm.get("/OUTING" + outings[i], None))
     minimumTime = Alarmlist[0][0]  # To search minimumTime of Alarm
     selectedPain = pains[0]
-    selectedPainNumber = 0
 
     minimumOut = Outinglist[0][0]  # To search minimumTime of Outing
     selectedOut = outings[0]
-    selectedOutNumber = 0
 
     for i in range(0, len(pains)):  # Searching minimum Alarm Time
         if Alarmlist[i][0] <= minimumTime:
             minimumTime = Alarmlist[i][0]
-            selectedPainNumber = i
             selectedPain = pains[i]
         else:
             pass
     for i in range(0, len(outings)):  # Searching minimum Outing Time
         if Outinglist[i][0] <= minimumOut:
             minimumOut = Outinglist[i][0]
-            selectedOutNumber = i
             selectedOut = outings[i]
     if(selectedPain == input_selectedPain and selectedOut == input_selectedOut):
         return False
@@ -98,7 +94,7 @@ if __name__ == '__main__':
     while True:
          pains = fcm.get("/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
          outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
-         Outinglist = [] #Two Dimentional list that contain outing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
+         Outinglist = [] #Two Dimentional list that contain outing dates. ex) [ ["s#yyyy#mm#dd#HH#MM","e#yyyy#mm#dd#HH#MM"],["s#yyyy#mm#dd#HH#MM","e#yyyy#mm#dd#HH#MM"]]
          Alarmlist = [] #Two Dimentional list that contain dosing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
          AlarmCount = 3 # Count integer to generate three alarm notification
          for i in range(0, len(pains)): #init Alarmlist by getting list from database and alignment
@@ -152,7 +148,7 @@ if __name__ == '__main__':
              #--------------------------- time check mode --------------------------------------------
              if(mode): #time check mode
                 # to check the new data in database
-                if(UPDATEorNOT()):
+                if(UPDATEorNOT(fcm,selectedPain,selectedOut)):
                     break
                 nextAlarmTime = Alarmlist[selectedPainNumber][0]
                 if(isEqualtime(nextAlarmTime)): # when the time is to provide a medicine
