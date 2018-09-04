@@ -53,14 +53,24 @@ if __name__ == '__main__':
     while True:
        if(mode): #time check mode
             pains = fcm.get("/DOSE",None).keys()
+            outings = fcm.get("/OUTING",None).keys()
+            Outinglist = []
             Alarmlist = []
             AlarmCount = 3
+
             for i in range(0,len(pains)):
                 Alarmlist.append(fcm.get("/DOSE/"+pains[i],None))
                 Alarmlist[i].sort()
+            for i in range(0,len(outings)):
+                Outinglist.append(fcm.get("/OUTING"+outings[i],None))
+
             minimumTime = Alarmlist[0][0]
             selectedPain = pains[0]
             selectedPainNumber = 0
+            minimumOut = Outinglist[0][0]
+            selectedOut = outings[0]
+            selectedOutNumber = 0
+
             for i in range(0, len(pains)):
                 if Alarmlist[i][0] <= minimumTime:
                     minimumTime = Alarmlist[i][0]
@@ -68,9 +78,16 @@ if __name__ == '__main__':
                     selectedPain = pains[i]
                 else:
                     pass
+            for i in range(0,len(outings)):
+                if Outinglist[i][0] <= minimumOut:
+                    minimumOut = Outinglist[i][0]
+                    selectedOutNumber = i
+                    selectedOut = outings[i]
             
-            print(selectedPain, minimumTime)
-        
+            print("Selected Pain & Time : ",selectedPain, minimumTime, "Selected Outing Schedule : ", selectedOut)
+
+            
+
             nextAlarmTime = minimumTime
             if(isEqualtime(nextAlarmTime) or True): # when the time is to provide a medicine
                 sm.step()
