@@ -49,8 +49,46 @@ def getToken(fcm): #To using Token for FCM Cloud Messaging
     rawtoken = fcm.get("/TOKEN",None)
     return rawtoken.replace('"',"",2)
 
+def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut):
+    pains = fcm.get("/DOSE",
+                    None).keys()  # Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
+    outings = fcm.get("/OUTING", None).keys()  # Outing Schedule list of Database (/OUTING/[*])
+    Outinglist = []  # Two Dimentional list that contain outing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
+    Alarmlist = []  # Two Dimentional list that contain dosing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
+    for i in range(0, len(pains)):  # init Alarmlist by getting list from database and alignment
+        Alarmlist.append(fcm.get("/DOSE/" + pains[i], None))
+        Alarmlist[i].sort()
+    for i in range(0, len(outings)):  # init Outinglist by getting list from database
+        Outinglist.append(fcm.get("/OUTING" + outings[i], None))
+    minimumTime = Alarmlist[0][0]  # To search minimumTime of Alarm
+    selectedPain = pains[0]
+    selectedPainNumber = 0
+
+    minimumOut = Outinglist[0][0]  # To search minimumTime of Outing
+    selectedOut = outings[0]
+    selectedOutNumber = 0
+
+    for i in range(0, len(pains)):  # Searching minimum Alarm Time
+        if Alarmlist[i][0] <= minimumTime:
+            minimumTime = Alarmlist[i][0]
+            selectedPainNumber = i
+            selectedPain = pains[i]
+        else:
+            pass
+    for i in range(0, len(outings)):  # Searching minimum Outing Time
+        if Outinglist[i][0] <= minimumOut:
+            minimumOut = Outinglist[i][0]
+            selectedOutNumber = i
+            selectedOut = outings[i]
+    if(selectedPain == input_selectedPain and selectedOut == input_selectedOut):
+        return False
+    else:
+        return True
+
+
+
 if __name__ == '__main__':
-    us = UltrasonicClass.Ultrasonic() #method list : getDistance, Cleanup
+    us = UltrasonicClass.Ultrasonic() #method list : getDistance, Cleanup // this syntax is like " UltrasonicClass.UltraSonic us = new UltrasonicClass.Ultrasonic()" in JAVA
     sm = StepClass.StepMotor() #method list : step
     fcm = firebase.FirebaseApplication("https://ddoyak-362cb.firebaseio.com/",None) #fcm database object
     push_service = FCMNotification(api_key="AAAANJ-9vtU:APA91bGKUyUHMY0Rj32m9FhP4eFJTP-9xwFmSHjkTqJDmmDEmZL5tJOtJ2PvrAwL5jBErjs8uC9pjE8WRua1Iooakul7lACDwAvgYg8n5r3Jfix8Ggcw89KXVQ50UCgg-hCbPj7_uaddOsNd09fk4q-eWbt0sW2G7A")
@@ -113,6 +151,9 @@ if __name__ == '__main__':
 
              #--------------------------- time check mode --------------------------------------------
              if(mode): #time check mode
+                # to check the new data in database
+                if(UPDATEorNOT()):
+                    break
                 nextAlarmTime = Alarmlist[selectedPainNumber][0]
                 if(isEqualtime(nextAlarmTime)): # when the time is to provide a medicine
                     for j in range(0,outingStackCount[i]):
