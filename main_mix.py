@@ -1,3 +1,4 @@
+import pygame
 import StepClass
 import UltrasonicClass
 import time
@@ -14,11 +15,13 @@ def isEqualtime(input_time): #compare input_time with current time(system) and r
     day = int(input_time[8:10])
     hour = int(input_time[11:13])
     min = int(input_time[14:])
-    c_year = int(time.strftime('%y'))
+    c_year = 2000 +int(time.strftime('%y'))
     c_month = int(time.strftime('%m'))
     c_day = int(time.strftime('%d'))
     c_hour = int(time.strftime('%H'))
     c_min = int(time.strftime('%M'))
+    print("[SYSTEM] Current Time : ",c_year,":",c_month,":",c_day,":",c_hour,":",c_min)
+    print("[SYSTEM] input Time : ",year,":",month,":",day,":",hour,":",min)
     time.sleep(5)
     if(hour == c_hour and min == c_min and year == c_year and month == c_month and c_day == day):
         return True
@@ -63,7 +66,7 @@ def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut):
     minimumTime = Alarmlist[0][0]  # To search minimumTime of Alarm
     selectedPain = pains[0]
 
-    minimumOut = Outinglist[0][0]  # To search minimumTime of Outing
+    minimumOut = Outinglist[0][1]  # To search minimumTime of Outing
     selectedOut = outings[0]
 
     for i in range(0, len(pains)):  # Searching minimum Alarm Time
@@ -73,8 +76,8 @@ def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut):
         else:
             pass
     for i in range(0, len(outings)):  # Searching minimum Outing Time
-        if Outinglist[i][0] <= minimumOut:
-            minimumOut = Outinglist[i][0]
+        if Outinglist[i][1] <= minimumOut:
+            minimumOut = Outinglist[i][1]
             selectedOut = outings[i]
     if(selectedPain == input_selectedPain and selectedOut == input_selectedOut):
         return False
@@ -89,8 +92,11 @@ if __name__ == '__main__':
     fcm = firebase.FirebaseApplication("https://ddoyak-362cb.firebaseio.com/",None) #fcm database object
     push_service = FCMNotification(api_key="AAAANJ-9vtU:APA91bGKUyUHMY0Rj32m9FhP4eFJTP-9xwFmSHjkTqJDmmDEmZL5tJOtJ2PvrAwL5jBErjs8uC9pjE8WRua1Iooakul7lACDwAvgYg8n5r3Jfix8Ggcw89KXVQ50UCgg-hCbPj7_uaddOsNd09fk4q-eWbt0sW2G7A")
     
+    pygame.mixer.init()
+    pygame.mixer.music.load("ifonger.mp3")
+    
     mode = True # true:time check , false:distance check(whether user dose medicine)
-    threshold = 5 # threshold of ultrasonic sensor value
+    threshold = 9.5 # threshold of ultrasonic sensor value
     while True:
          pains = fcm.get("/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
          outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
@@ -106,7 +112,7 @@ if __name__ == '__main__':
          selectedPain = pains[0]
          selectedPainNumber = 0
 
-         minimumOut = Outinglist[0][0] #To search minimumTime of Outing
+         minimumOut = Outinglist[0][1] #To search minimumTime of Outing
          selectedOut = outings[0]
          selectedOutNumber = 0
          outingFlag = False
@@ -120,12 +126,12 @@ if __name__ == '__main__':
                  pass
          for i in range(0, len(outings)): #Searching minimum Outing Time
              if Outinglist[i][0] <= minimumOut:
-                 minimumOut = Outinglist[i][0]
+                 minimumOut = Outinglist[i][1]
                  selectedOutNumber = i
                  selectedOut = outings[i]
 
-         currentOutingStart = Outinglist[selectedOutNumber][0][2:] #Slicing String of Outing
-         currentOutingEnd = Outinglist[selectedOutNumber][1][2:] #Slicing String of Outing
+         currentOutingStart = Outinglist[selectedOutNumber][1][2:] #Slicing String of Outing
+         currentOutingEnd = Outinglist[selectedOutNumber][2][2:] #Slicing String of Outing
 
         #################### for give a different portion of medicine ##############################
          outingStackCount = list()
@@ -138,6 +144,8 @@ if __name__ == '__main__':
                  if(outingStackCount[i-1]!=0):
                     outingStackCount[i-1] += 1
                     outingStackCount[i] = 0
+                 else:
+                    outingStackCount[i-2] += 1
                     outingFlag = True
              else:
                  outingStackCount[i-1] = 1
@@ -157,10 +165,13 @@ if __name__ == '__main__':
                     break
                 nextAlarmTime = Alarmlist[selectedPainNumber][0]
                 print("[SYSTEM] Current Alarm Time : ",nextAlarmTime)
-                if(isEqualtime(nextAlarmTime) or True): # when the time is to provide a medicine/ in actual use, remove "or True"
+                if(isEqualtime(nextAlarmTime)): # when the time is to provide a medicine/ in actual use, remove "or True"
                     for j in range(0,outingStackCount[i+1]):
                         sm.step()
                         time.sleep(10)
+                    pygame.mixer.music.play()
+                    while pygame.mixer.music.get_busy() == True:
+                        continue
                     mode = False
                     Alarmlist[selectedPainNumber].remove(nextAlarmTime)
                     #refresh the database
@@ -175,10 +186,10 @@ if __name__ == '__main__':
                 while True:
                     if(outingFlag):
                         print("[SYSTEM] Remove Outing Schedule")
-                        esult2 = fcm.patch("/OUTING",{selectedOut : None}) # i don't know that it works.
-                    if(False):
-                    #if(us.getDistance()>threshold and False): # in actual use, remove "and False"
-                        #result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user takes a medicine.")
+                        result2 = fcm.patch("/OUTING",{selectedOut : None}) # i don't know that it works.
+                    #if(False):
+                    if(us.getDistance()>threshold): # in actual use, remove "and False"
+                        result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user takes a medicine.")
                         print("[SYSTEM] taking Alarm is generated in andrioid Device")
                         history = fcm.get("/HISTORY/"+selectedPain,None)
                         if history == None:
@@ -186,11 +197,13 @@ if __name__ == '__main__':
                         history.append(nextAlarmTime+"#1#"+selectedPain)
                         result = fcm.patch("/",{"/HISTORY" : history})
                         time.sleep(5)
+                        mode = True
+                        break
                         #add to delete from database
                     else:
                         if(AlarmCount == 3):
                             if(isExceedtime(nextAlarmTime,5)): # if the medicine is not brought for 5 mintues
-                                #result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
                                 print("[SYSTEM] 1 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -198,7 +211,7 @@ if __name__ == '__main__':
                                 pass
                         elif(AlarmCount == 2) :
                             if(isExceedtime(nextAlarmTime,10)):
-                                #result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
                                 print("[SYSTEM] 2 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -206,7 +219,7 @@ if __name__ == '__main__':
                                 pass
                         elif(AlarmCount == 1) :
                             if(isExceedtime(nextAlarmTime,15)):
-                                #result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
                                 print("[SYSTEM] 3 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -214,7 +227,7 @@ if __name__ == '__main__':
                                 pass
                         else:
                             if(isExceedtime(nextAlarmTime,15)):
-                                #result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
                                 print("[SYSTEM] really not taking Alarm is generated in android Device")
                                 history = fcm.get("/HISTORY",None)
                                 if history == None:

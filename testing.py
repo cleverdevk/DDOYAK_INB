@@ -1,5 +1,6 @@
 import time
 import sys
+import UltrasonicClass
 import RPi.GPIO as GPIO
 
 
@@ -70,8 +71,12 @@ class StepMotor:
         pas = 0
         self.step_4(0)
         self.steps_4(-370)
-#if __name__ == '__main__':
-#    sm = StepMotor()
-#    sm.step()
-        
+if __name__ == '__main__':
+    us = UltrasonicClass.Ultrasonic()
+    print(us.getDistance())
+    sm = StepMotor()
+    sm.step()
+    
+    time.sleep(1)
+    print(us.getDistance())
 

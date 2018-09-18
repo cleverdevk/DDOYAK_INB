@@ -36,3 +36,7 @@ class Ultrasonic:
     
     def Cleanup(self):
         self.GPIO.cleanup()
+#if __name__ == '__main__':
+#    print("mainFunc")
+#    us = Ultrasonic()
+#    print(us.getDistance())
