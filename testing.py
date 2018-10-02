@@ -2,7 +2,7 @@ import time
 import sys
 import UltrasonicClass
 import RPi.GPIO as GPIO
-
+import pygame
 
 class StepMotor:
     def __init__(self):
@@ -75,8 +75,14 @@ if __name__ == '__main__':
     us = UltrasonicClass.Ultrasonic()
     print(us.getDistance())
     sm = StepMotor()
+    pygame.mixer.init()
+    pygame.mixer.music.load("ifonger.mp3")
     sm.step()
-    
+    time.sleep(5)
+    sm.step()
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy() == True:
+        continue
     time.sleep(1)
     print(us.getDistance())
 

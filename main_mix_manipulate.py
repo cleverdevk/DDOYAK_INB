@@ -1,3 +1,4 @@
+#coding:utf-8
 import pygame
 import StepClass
 import UltrasonicClass
@@ -20,14 +21,40 @@ def isEqualtime(input_time): #compare input_time with current time(system) and r
     c_day = int(time.strftime('%d'))
     c_hour = int(time.strftime('%H'))
     c_min = int(time.strftime('%M'))
-    print("[SYSTEM] Current Time : ",c_year,":",c_month,":",c_day,":",c_hour,":",c_min)
-    print("[SYSTEM] input Time : ",year,":",month,":",day,":",hour,":",min)
+    print("[SYSTEM] Current Time : {0}:{1}:{2}:{3}:{4}".format(c_year,c_month,c_day,c_hour,c_min))
+    print("[SYSTEM] input Time   : {0}:{1}:{2}:{3}:{4}".format(year,month,day,hour,min))
     time.sleep(5)
     if(hour == c_hour and min == c_min and year == c_year and month == c_month and c_day == day):
         return True
     else:
         return False
     
+def isObsoleteTime(input_time):
+    year = int(input_time[0:4])
+    month = int(input_time[5:7])
+    day = int(input_time[8:10])
+    hour = int(input_time[11:13])
+    min = int(input_time[14:])
+    c_year = 2000 +int(time.strftime('%y'))
+    c_month = int(time.strftime('%m'))
+    c_day = int(time.strftime('%d'))
+    c_hour = int(time.strftime('%H'))
+    c_min = int(time.strftime('%M'))
+    print("[SYSTEM] Current Time : {0}:{1}:{2}:{3}:{4}".format(c_year,c_month,c_day,c_hour,c_min))
+    print("[SYSTEM] input Time   : {0}:{1}:{2}:{3}:{4}".format(year,month,day,hour,min))
+    time.sleep(5)
+    if(c_year > year):
+        return True
+    elif(c_month > month and c_year == year):
+        return True
+    elif(c_day > day and c_year == year and c_month == month):
+        return True
+    elif(c_hour > hour and c_year == year and c_month == month and c_day == day):
+        return True
+    elif(c_min > min and c_year == year and c_month == month and c_day == day and c_hour == hour):
+        return True
+    else:
+        return False
 
 def isExceedtime(input_time, threshold): #determine whether input_time exceed the threshold term and return bool value
     hour = int(input_time[11:13])
@@ -52,22 +79,29 @@ def getToken(fcm): #To using Token for FCM Cloud Messaging
     rawtoken = fcm.get("/TOKEN",None)
     return rawtoken.replace('"',"",2)
 
-def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut):
+def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut,isOuting):
     pains = fcm.get("/DOSE",
                     None).keys()  # Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
-    outings = fcm.get("/OUTING", None).keys()  # Outing Schedule list of Database (/OUTING/[*])
+    if(fcm.get("/OUTING",None) == None):
+             c_isOuting = False
+             outings = []
+    else:
+        outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
+        c_isOuting = True
     Outinglist = []  # Two Dimentional list that contain outing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
     Alarmlist = []  # Two Dimentional list that contain dosing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
     for i in range(0, len(pains)):  # init Alarmlist by getting list from database and alignment
         Alarmlist.append(fcm.get("/DOSE/" + pains[i], None))
         Alarmlist[i].sort()
-    for i in range(0, len(outings)):  # init Outinglist by getting list from database
-        Outinglist.append(fcm.get("/OUTING/" + outings[i], None))
+    if(c_isOuting):
+        for i in range(0, len(outings)):  # init Outinglist by getting list from database
+            Outinglist.append(fcm.get("/OUTING/" + outings[i], None))
     minimumTime = Alarmlist[0][0]  # To search minimumTime of Alarm
     selectedPain = pains[0]
 
-    minimumOut = Outinglist[0][1]  # To search minimumTime of Outing
-    selectedOut = outings[0]
+    if(c_isOuting):
+        minimumOut = Outinglist[0][1]  # To search minimumTime of Outing
+        selectedOut = outings[0]
 
     for i in range(0, len(pains)):  # Searching minimum Alarm Time
         if Alarmlist[i][0] <= minimumTime:
@@ -75,11 +109,15 @@ def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut):
             selectedPain = pains[i]
         else:
             pass
-    for i in range(0, len(outings)):  # Searching minimum Outing Time
-        if Outinglist[i][1] <= minimumOut:
-            minimumOut = Outinglist[i][1]
-            selectedOut = outings[i]
-    if(selectedPain == input_selectedPain and selectedOut == input_selectedOut):
+    if(c_isOuting):
+        for i in range(0, len(outings)):  # Searching minimum Outing Time
+            if Outinglist[i][1] <= minimumOut:
+                minimumOut = Outinglist[i][1]
+                selectedOut = outings[i]
+    else:
+        minimumOut = None
+        selectedOut = None
+    if(selectedPain == input_selectedPain and selectedOut == input_selectedOut and isOuting == c_isOuting):
         return False
     else:
         return True
@@ -91,82 +129,132 @@ if __name__ == '__main__':
     sm = StepClass.StepMotor() #method list : step
     fcm = firebase.FirebaseApplication("https://ddoyak-362cb.firebaseio.com/",None) #fcm database object
     push_service = FCMNotification(api_key="AAAANJ-9vtU:APA91bGKUyUHMY0Rj32m9FhP4eFJTP-9xwFmSHjkTqJDmmDEmZL5tJOtJ2PvrAwL5jBErjs8uC9pjE8WRua1Iooakul7lACDwAvgYg8n5r3Jfix8Ggcw89KXVQ50UCgg-hCbPj7_uaddOsNd09fk4q-eWbt0sW2G7A")
-    
+    iteration = 0
     pygame.mixer.init()
     pygame.mixer.music.load("ifonger.mp3")
     
     mode = True # true:time check , false:distance check(whether user dose medicine)
     threshold = 9.5 # threshold of ultrasonic sensor value
+    isOuting = False
     while True:
-         pains = fcm.get("/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
-         outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
+         if(fcm.get("/DOSE",None) == None):
+             print("There is no Schedule for Dosing, Waiting...")
+             time.sleep(3)
+             continue
+         else:
+             pains = fcm.get("/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
+         if(fcm.get("/OUTING",None) == None):
+             print("There is no Schedule for Outing.")
+             isOuting = False
+         else:
+             outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
+             isOuting = True
          Outinglist = [] #Two Dimentional list that contain outing dates. ex) [ ["s#yyyy#mm#dd#HH#MM","e#yyyy#mm#dd#HH#MM"],["s#yyyy#mm#dd#HH#MM","e#yyyy#mm#dd#HH#MM"]]
          Alarmlist = [] #Two Dimentional list that contain dosing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
          AlarmCount = 3 # Count integer to generate three alarm notification
          for i in range(0, len(pains)): #init Alarmlist by getting list from database and alignment
             Alarmlist.append(fcm.get("/DOSE/" + pains[i], None))
             Alarmlist[i].sort()
-         for i in range(0, len(outings)): #init Outinglist by getting list from database
-            Outinglist.append(fcm.get("/OUTING/" + outings[i], None))
+         if(isOuting):
+             for i in range(0, len(outings)): #init Outinglist by getting list from database
+                Outinglist.append(fcm.get("/OUTING/" + outings[i], None))
          minimumTime = Alarmlist[0][0] #To search minimumTime of Alarm
          selectedPain = pains[0]
          selectedPainNumber = 0
 
-         minimumOut = Outinglist[0][1] #To search minimumTime of Outing
-         selectedOut = outings[0]
-         selectedOutNumber = 0
-         outingFlag = False
+         if(isOuting):
+             minimumOut = Outinglist[0][1] #To search minimumTime of Outing
+             selectedOut = outings[0]
+             selectedOutNumber = 0
+             outingFlag = False
+         else:
+             pass
 
          for i in range(0, len(pains)): #Searching minimum Alarm Time
-             if Alarmlist[i][0] <= minimumTime:
+             if(Alarmlist[i][0] <= minimumTime):
                  minimumTime = Alarmlist[i][0]
                  selectedPainNumber = i
                  selectedPain = pains[i]
              else:
                  pass
-         for i in range(0, len(outings)): #Searching minimum Outing Time
-             if Outinglist[i][0] <= minimumOut:
-                 minimumOut = Outinglist[i][1]
-                 selectedOutNumber = i
-                 selectedOut = outings[i]
+         if(isOuting):
+             for i in range(0, len(outings)): #Searching minimum Outing Time
+                 if(Outinglist[i][1] <= minimumOut):
+                     minimumOut = Outinglist[i][1]
+                     selectedOutNumber = i
+                     selectedOut = outings[i]
 
-         currentOutingStart = Outinglist[selectedOutNumber][1][2:] #Slicing String of Outing
-         currentOutingEnd = Outinglist[selectedOutNumber][2][2:] #Slicing String of Outing
+             currentOutingStart = Outinglist[selectedOutNumber][1][2:] #Slicing String of Outing
+             currentOutingEnd = Outinglist[selectedOutNumber][2][2:] #Slicing String of Outing
 
         #################### for give a different portion of medicine ##############################
          outingStackCount = list()
-         outingStackCount.append(0)
-         outingStackCount.append(1)
-         cnt = 1
-         for i in range(2,len(Alarmlist[selectedOutNumber])+1):
-             outingStackCount.append(1)
-             if (inOutingSchedule(Alarmlist[selectedPainNumber][i-1], currentOutingStart, currentOutingEnd)):
-                 if(outingStackCount[i-1]!=0):
-                    outingStackCount[i-1] += 1
-                    outingStackCount[i] = 0
+         if(isOuting):
+             
+             outingStackFlag = list()
+             
+             for i in range(0, len(Alarmlist[selectedPainNumber])):
+                 outingStackCount.append(1)
+                 outingStackFlag.append(False)
+             print(outingStackCount, outingStackFlag)
+             for i in range(0, len(Alarmlist[selectedPainNumber])):
+                 if(Alarmlist[selectedPainNumber][i] >= currentOutingStart and Alarmlist[selectedPainNumber][i] <= currentOutingEnd):
+                     outingStackFlag[i] = True
                  else:
-                    outingStackCount[i-2] += 1
-                    outingFlag = True
-             else:
-                 outingStackCount[i-1] = 1
+                     outingStackFlag[i] = False
+             cnt = 0
+             for i in range(0, len(Alarmlist[selectedPainNumber])):
+                 if(outingStackFlag[i]):
+                     cnt = cnt + 1
+                     outingStackCount[i] = 0
+                     print(outingStackCount)
+                 else:
+                     outingStackCount[i] = outingStackCount[i] + cnt
+                     cnt = 0
+                     print(outingStackCount)
+             outingStackCount.reverse()
+             print(outingStackCount)
+         else:
+             for i in range(0, len(Alarmlist[selectedPainNumber])):
+                 outingStackCount.append(1)
+             minimumOut = None
+             selectedOut = None
+                
+                     
+             
         ##############################################################################################
 
          print("[SYSYEM] Selected Pain & Time : ", selectedPain, minimumTime) #Log
-         print("[SYSTEM] Selected Outing Schedule : ", selectedOut,currentOutingStart,currentOutingEnd, outingStackCount[1:]) #Log
-
+         
+         if(isOuting):
+             print("[SYSTEM] Selected Outing Schedule : ", selectedOut,currentOutingStart,currentOutingEnd, outingStackCount) #Log
+         else:
+             print("[SYSTEM] No Outing Schedule")
+             
+         if(isObsoleteTime(minimumTime)):
+             print("[SYSTEM] Current Time will be deleted. this time is not up-to-date")
+             Alarmlist[selectedPainNumber].remove(minimumTime)
+             #refresh the database
+             result2 = fcm.patch("/DOSE",{ selectedPain : Alarmlist[selectedPainNumber]})
+             continue
+         if(isOuting):
+             if(isObsoleteTime(currentOutingEnd)):
+                 print("[SYSTEM] Current Outing Time will be deleted. this time is not up-to-date")
+                 Outinglist.remove(Outinglist[0])
+                 result2 = fcm.patch("/",{ "OUTING" : Outinglist})
          for i in range(0, len(Alarmlist[selectedPainNumber])): # Main Algorithm
 
              #--------------------------- time check mode --------------------------------------------
              if(mode): #time check mode
                 print("#########################Time Check mode#########################")
                 # to check the new data in database
-                if(UPDATEorNOT(fcm,selectedPain,selectedOut)):
+                if(UPDATEorNOT(fcm,selectedPain,selectedOut,isOuting)):
                     print("[SYSTEM] Need to Update!, Data will be updated")
                     break
                 nextAlarmTime = Alarmlist[selectedPainNumber][0]
                 print("[SYSTEM] Current Alarm Time : ",nextAlarmTime)
                 if(isEqualtime(nextAlarmTime)): # when the time is to provide a medicine/ in actual use, remove "or True"
-                    for j in range(0,outingStackCount[i+1]):
+                    for j in range(0,outingStackCount[i]):
                         sm.step()
                         time.sleep(2)
                     pygame.mixer.music.play()
@@ -181,17 +269,18 @@ if __name__ == '__main__':
                 else:
                     pass
              #-------------------------------- distance check mode --------------------------------------
+             #여기수정해야함.$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
              else:
                 print("#########################Distance Check Mode#################################")
                 while True:
                     if(outingFlag):
                         print("[SYSTEM] Remove Outing Schedule")
-                        result2 = fcm.patch("/OUTING",{selectedOut : None}) # i don't know that it works.
+                        result2 = fcm.patch("/OUTING",{selectedOut : None})
                     #if(False):
-                    if(us.getDistance()>threshold): # in actual use, remove "and False"
-                        result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user takes a medicine.")
+                    if(False): # in actual use, remove "and False"
+                        result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="약을 복용하였습니다.")
                         print("[SYSTEM] taking Alarm is generated in andrioid Device")
-                        history = fcm.get("/HISTORY/"+selectedPain,None)
+                        history = fcm.get("/HISTORY"+selectedPain,None)
                         if history == None:
                             history = []
                         history.append(nextAlarmTime+"#1#"+selectedPain)
@@ -203,28 +292,31 @@ if __name__ == '__main__':
                     else:
                         if(AlarmCount == 3):
                             if(isExceedtime(nextAlarmTime,5)): # if the medicine is not brought for 5 mintues
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[5분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 1 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
                             else:
-                                pass
+                                print("[SYSTEM] Waiting... Not Taking Phase Exceedtime Minute : 5")
+                                time.sleep(3)
                         elif(AlarmCount == 2) :
                             if(isExceedtime(nextAlarmTime,10)):
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[10분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 2 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
                             else:
-                                pass
+                                print("[SYSTEM] Waiting... Not Taking Phase Exceedtime Minute : 10")
+                                time.sleep(3)
                         elif(AlarmCount == 1) :
                             if(isExceedtime(nextAlarmTime,15)):
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 3 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
                             else:
-                                pass
+                                print("[SYSTEM] Waiting... Not Taking Phase Exceedtime Minute : 15")
+                                time.sleep(3)
                         else:
                             if(isExceedtime(nextAlarmTime,15)):
                                 result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
