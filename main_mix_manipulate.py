@@ -270,7 +270,7 @@ if __name__ == '__main__':
              if(mode): #time check mode
                 print("#########################Time Check mode#########################")
                 # to check the new data in database
-                if(UPDATEorNOT(fcm,selectedPain,selectedOut,isOuting)):
+                if(UPDATEorNOT(fcm,patient_id,selectedPain,selectedOut,isOuting)):
                     print("[SYSTEM] Need to Update!, Data will be updated")
                     break
                 nextAlarmTime = Alarmlist[selectedPainNumber][0]
@@ -299,8 +299,8 @@ if __name__ == '__main__':
                         result2 = fcm.patch("/"+patient_id+"/OUTING",{selectedOut : None})
                     #if(False):
                     if(False): # in actual use, remove "and False"
-                        result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="약을 복용하였습니다.")
-                        result = push_service.notify_single_device(registration_id=getGuardianToken(fcm),message_body="약을 복용하였습니다.")
+                        result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="약을 복용하였습니다.")
+                        result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="약을 복용하였습니다.")
                         print("[SYSTEM] taking Alarm is generated in andrioid Device")
                         history = fcm.get("/"+patient_id+"/HISTORY/"+selectedPain,None)
                         if history == None:
@@ -315,8 +315,8 @@ if __name__ == '__main__':
                     else:
                         if(AlarmCount == 3):
                             if(isExceedtime(nextAlarmTime,5)): # if the medicine is not brought for 5 mintues
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[5분 경과] 약을 복용하지 않았습니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm),message_body="[5분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="[5분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="[5분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 1 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -325,8 +325,8 @@ if __name__ == '__main__':
                                 time.sleep(3)
                         elif(AlarmCount == 2) :
                             if(isExceedtime(nextAlarmTime,10)):
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[10분 경과] 약을 복용하지 않았습니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardainToken(fcm),message_body="[10분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="[10분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="[10분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 2 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -335,7 +335,7 @@ if __name__ == '__main__':
                                 time.sleep(3)
                         elif(AlarmCount == 1) :
                             if(isExceedtime(nextAlarmTime,15)):
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="[15분 경과] 약을 복용하지 않았습니다.")
                                 result = push_service.notify_single_device(registration_id=getGuardainToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 3 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
@@ -345,8 +345,8 @@ if __name__ == '__main__':
                                 time.sleep(3)
                         else:
                             if(isExceedtime(nextAlarmTime,15)):
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="미 복용으로 기재합니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm),message_body="미 복용으로 기재합니다.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="미 복용으로 기재합니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="미 복용으로 기재합니다.")
                                 print("[SYSTEM] really not taking Alarm is generated in android Device")
                                 history = fcm.get("/"+patient_id+"/HISTORY",None)
                                 if history == None:
@@ -365,7 +365,7 @@ if __name__ == '__main__':
         
     
     ###push service###
-    #result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="Hello2",data_message=data_message)
+    #result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="Hello2",data_message=data_message)
     
     ###database patch###
     #result2 = firebase.patch("/OUTING",{"o2" : ["s#2018#08#22#09#00", "e#2018#08#22#18#00"]})
