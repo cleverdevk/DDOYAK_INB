@@ -6,6 +6,7 @@ import time
 import RPi.GPIO as GPIO
 import os
 import json
+import sys
 from firebase import firebase
 from pyfcm import FCMNotification
 from multiprocessing import Process
@@ -75,27 +76,31 @@ def inOutingSchedule(input_time, start_time, end_time): #determine whether input
         return False
 
 
-def getToken(fcm): #To using Token for FCM Cloud Messaging
-    rawtoken = fcm.get("/TOKEN",None)
+def getToken(fcm,patient_id): #To using Token for FCM Cloud Messaging
+    rawtoken = fcm.get("/"+patient_id+"/TOKEN",None)
     return rawtoken.replace('"',"",2)
 
-def UPDATEorNOT(fcm,input_selectedPain,input_selectedOut,isOuting):
-    pains = fcm.get("/DOSE",
+def getGuardianToken(fcm,patient_id):
+    rawtoken = fcm.get("/"+patient_id+"/TOKEN_GUARDIAN", None)
+    return rawtoken.replace('"',"",2)
+
+def UPDATEorNOT(fcm,patient_id,input_selectedPain,input_selectedOut,isOuting):
+    pains = fcm.get("/"+patient_id+"/DOSE",
                     None).keys()  # Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
-    if(fcm.get("/OUTING",None) == None):
+    if(fcm.get("/"+patient_id+"/OUTING",None) == None):
              c_isOuting = False
              outings = []
     else:
-        outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
+        outings = fcm.get("/"+patient_id+"/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
         c_isOuting = True
     Outinglist = []  # Two Dimentional list that contain outing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
     Alarmlist = []  # Two Dimentional list that contain dosing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
     for i in range(0, len(pains)):  # init Alarmlist by getting list from database and alignment
-        Alarmlist.append(fcm.get("/DOSE/" + pains[i], None))
+        Alarmlist.append(fcm.get("/"+patient_id+"/DOSE/" + pains[i], None))
         Alarmlist[i].sort()
     if(c_isOuting):
         for i in range(0, len(outings)):  # init Outinglist by getting list from database
-            Outinglist.append(fcm.get("/OUTING/" + outings[i], None))
+            Outinglist.append(fcm.get("/"+patient_id+"/OUTING/" + outings[i], None))
     minimumTime = Alarmlist[0][0]  # To search minimumTime of Alarm
     selectedPain = pains[0]
 
@@ -136,28 +141,42 @@ if __name__ == '__main__':
     mode = True # true:time check , false:distance check(whether user dose medicine)
     threshold = 9.5 # threshold of ultrasonic sensor value
     isOuting = False
+    
+    #Connect ID
+    ids = fcm.get("/", None).keys()
     while True:
-         if(fcm.get("/DOSE",None) == None):
+        sys.stdout.write("[SYSTEM] Input the patient ID : ")
+        patient_id = input()
+        if(patient_id in ids):
+            print("[SYSTEM] Account '"+patient_id+"' ' is connected! ")
+            break;
+        else:
+            print("[SYSTEM] Account '"+patient_id+"' does not exist. Please Input the patient ID again.")
+
+
+
+    while True:
+         if(fcm.get("/"+patient_id+"/DOSE",None) == None):
              print("There is no Schedule for Dosing, Waiting...")
              time.sleep(3)
              continue
          else:
-             pains = fcm.get("/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
-         if(fcm.get("/OUTING",None) == None):
+             pains = fcm.get("/"+patient_id+"/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
+         if(fcm.get("/"+patient_id+"/OUTING",None) == None):
              print("There is no Schedule for Outing.")
              isOuting = False
          else:
-             outings = fcm.get("/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
+             outings = fcm.get("/"+patient_id+"/OUTING", None).keys() #Outing Schedule list of Database (/OUTING/[*])
              isOuting = True
          Outinglist = [] #Two Dimentional list that contain outing dates. ex) [ ["s#yyyy#mm#dd#HH#MM","e#yyyy#mm#dd#HH#MM"],["s#yyyy#mm#dd#HH#MM","e#yyyy#mm#dd#HH#MM"]]
          Alarmlist = [] #Two Dimentional list that contain dosing dates. ex) [ ["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"],["yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM","yyyy#mm#dd#HH#MM"]]
          AlarmCount = 3 # Count integer to generate three alarm notification
          for i in range(0, len(pains)): #init Alarmlist by getting list from database and alignment
-            Alarmlist.append(fcm.get("/DOSE/" + pains[i], None))
+            Alarmlist.append(fcm.get("/"+patient_id+"/DOSE/" + pains[i], None))
             Alarmlist[i].sort()
          if(isOuting):
              for i in range(0, len(outings)): #init Outinglist by getting list from database
-                Outinglist.append(fcm.get("/OUTING/" + outings[i], None))
+                Outinglist.append(fcm.get("/"+patient_id+"/OUTING/" + outings[i], None))
          minimumTime = Alarmlist[0][0] #To search minimumTime of Alarm
          selectedPain = pains[0]
          selectedPainNumber = 0
@@ -235,14 +254,17 @@ if __name__ == '__main__':
              print("[SYSTEM] Current Time will be deleted. this time is not up-to-date")
              Alarmlist[selectedPainNumber].remove(minimumTime)
              #refresh the database
-             result2 = fcm.patch("/DOSE",{ selectedPain : Alarmlist[selectedPainNumber]})
+             result2 = fcm.patch("/"+patient_id+"/DOSE",{ selectedPain : Alarmlist[selectedPainNumber]})
              continue
          if(isOuting):
              if(isObsoleteTime(currentOutingEnd)):
                  print("[SYSTEM] Current Outing Time will be deleted. this time is not up-to-date")
                  Outinglist.remove(Outinglist[0])
-                 result2 = fcm.patch("/",{ "OUTING" : Outinglist})
-         for i in range(0, len(Alarmlist[selectedPainNumber])): # Main Algorithm
+                 result2 = fcm.patch("/"+patient_id+"/",{ "OUTING" : Outinglist})
+
+         main_count = len(Alarmlist[selectedPainNumber]);
+
+         while main_count>0: # Main Algorithm
 
              #--------------------------- time check mode --------------------------------------------
              if(mode): #time check mode
@@ -263,36 +285,38 @@ if __name__ == '__main__':
                     mode = False
                     Alarmlist[selectedPainNumber].remove(nextAlarmTime)
                     #refresh the database
-                    result2 = fcm.patch("/DOSE",{ selectedPain : Alarmlist[selectedPainNumber]})
+                    result2 = fcm.patch("/"+patient_id+"/DOSE",{ selectedPain : Alarmlist[selectedPainNumber]})
                     #fcm.delete("/DOSE/m1","0")
                     time.sleep(5)
                 else:
                     pass
              #-------------------------------- distance check mode --------------------------------------
-             #여기수정해야함.$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
              else:
                 print("#########################Distance Check Mode#################################")
                 while True:
                     if(outingFlag):
                         print("[SYSTEM] Remove Outing Schedule")
-                        result2 = fcm.patch("/OUTING",{selectedOut : None})
+                        result2 = fcm.patch("/"+patient_id+"/OUTING",{selectedOut : None})
                     #if(False):
                     if(False): # in actual use, remove "and False"
                         result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="약을 복용하였습니다.")
+                        result = push_service.notify_single_device(registration_id=getGuardianToken(fcm),message_body="약을 복용하였습니다.")
                         print("[SYSTEM] taking Alarm is generated in andrioid Device")
-                        history = fcm.get("/HISTORY"+selectedPain,None)
+                        history = fcm.get("/"+patient_id+"/HISTORY/"+selectedPain,None)
                         if history == None:
                             history = []
                         history.append(nextAlarmTime+"#1#"+selectedPain)
-                        result = fcm.patch("/",{"/HISTORY" : history})
+                        result = fcm.patch("/"+patient_id,{"/HISTORY" : history})
                         time.sleep(5)
                         mode = True
+                        main_count = main_count - 1
                         break
                         #add to delete from database
                     else:
                         if(AlarmCount == 3):
                             if(isExceedtime(nextAlarmTime,5)): # if the medicine is not brought for 5 mintues
                                 result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[5분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm),message_body="[5분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 1 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -302,6 +326,7 @@ if __name__ == '__main__':
                         elif(AlarmCount == 2) :
                             if(isExceedtime(nextAlarmTime,10)):
                                 result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[10분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardainToken(fcm),message_body="[10분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 2 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -311,6 +336,7 @@ if __name__ == '__main__':
                         elif(AlarmCount == 1) :
                             if(isExceedtime(nextAlarmTime,15)):
                                 result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardainToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 3 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -319,15 +345,17 @@ if __name__ == '__main__':
                                 time.sleep(3)
                         else:
                             if(isExceedtime(nextAlarmTime,15)):
-                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="user does not take a medicine.")
+                                result = push_service.notify_single_device(registration_id=getToken(fcm),message_body="미 복용으로 기재합니다.")
+                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm),message_body="미 복용으로 기재합니다.")
                                 print("[SYSTEM] really not taking Alarm is generated in android Device")
-                                history = fcm.get("/HISTORY",None)
+                                history = fcm.get("/"+patient_id+"/HISTORY",None)
                                 if history == None:
                                     history = []
                                 history.append(nextAlarmTime+"#0#"+selectedPain)
-                                result = fcm.patch("/",{"/HISTORY" : history})
+                                result = fcm.patch("/"+patient_id,{"/HISTORY" : history})
                                 AlarmCount = 3
                                 mode = True
+                                main_count = main_count - 1
                                 time.sleep(5)
                                 break
                 
