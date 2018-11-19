@@ -87,7 +87,7 @@ def getGuardianToken(fcm,patient_id):
 def UPDATEorNOT(fcm,patient_id,input_selectedPain,input_selectedOut,isOuting):
     pains = fcm.get("/"+patient_id+"/DOSE",
                     None).keys()  # Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
-    if(fcm.get("/"+patient_id+"/OUTING",None) == None):
+    if(fcm.get("/"+patient_id+"/OUTING",None) == None or fcm.get("/"+patient_id+"/OUTING",None) == "0"):
              c_isOuting = False
              outings = []
     else:
@@ -146,7 +146,7 @@ if __name__ == '__main__':
     ids = fcm.get("/", None).keys()
     while True:
         sys.stdout.write("[SYSTEM] Input the patient ID : ")
-        patient_id = input()
+        patient_id = raw_input()
         if(patient_id in ids):
             print("[SYSTEM] Account '"+patient_id+"' ' is connected! ")
             break;
@@ -156,13 +156,13 @@ if __name__ == '__main__':
 
 
     while True:
-         if(fcm.get("/"+patient_id+"/DOSE",None) == None):
+         if(fcm.get("/"+patient_id+"/DOSE",None) == None or fcm.get("/"+patient_id+"/DOSE",None) == "0"):
              print("There is no Schedule for Dosing, Waiting...")
              time.sleep(3)
              continue
          else:
              pains = fcm.get("/"+patient_id+"/DOSE", None).keys() #Pain name list of Database(/DOSE/[*]) ex) [cold, schizophrenia, headache ...]
-         if(fcm.get("/"+patient_id+"/OUTING",None) == None):
+         if(fcm.get("/"+patient_id+"/OUTING",None) == None or fcm.get("/"+patient_id+"/OUTING",None) =="0"):
              print("There is no Schedule for Outing.")
              isOuting = False
          else:
@@ -303,7 +303,7 @@ if __name__ == '__main__':
                         result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="약을 복용하였습니다.")
                         print("[SYSTEM] taking Alarm is generated in andrioid Device")
                         history = fcm.get("/"+patient_id+"/HISTORY/"+selectedPain,None)
-                        if history == None:
+                        if history == None or history == "0":
                             history = []
                         history.append(nextAlarmTime+"#1#"+selectedPain)
                         result = fcm.patch("/"+patient_id,{"/HISTORY" : history})
@@ -349,7 +349,7 @@ if __name__ == '__main__':
                                 result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="미 복용으로 기재합니다.")
                                 print("[SYSTEM] really not taking Alarm is generated in android Device")
                                 history = fcm.get("/"+patient_id+"/HISTORY",None)
-                                if history == None:
+                                if history == None or history == "0":
                                     history = []
                                 history.append(nextAlarmTime+"#0#"+selectedPain)
                                 result = fcm.patch("/"+patient_id,{"/HISTORY" : history})
