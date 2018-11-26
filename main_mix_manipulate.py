@@ -78,11 +78,17 @@ def inOutingSchedule(input_time, start_time, end_time): #determine whether input
 
 def getToken(fcm,patient_id): #To using Token for FCM Cloud Messaging
     rawtoken = fcm.get("/"+patient_id+"/TOKEN",None)
-    return rawtoken.replace('"',"",2)
+    if rawtoken == None:
+        return None
+    else:
+        return rawtoken.replace('"',"",2)
 
 def getGuardianToken(fcm,patient_id):
     rawtoken = fcm.get("/"+patient_id+"/TOKEN_GUARDIAN", None)
-    return rawtoken.replace('"',"",2)
+    if rawtoken == None:
+        return None
+    else:
+        return rawtoken.replace('"',"",2)
 
 def UPDATEorNOT(fcm,patient_id,input_selectedPain,input_selectedOut,isOuting):
     pains = fcm.get("/"+patient_id+"/DOSE",
@@ -139,7 +145,7 @@ if __name__ == '__main__':
     pygame.mixer.music.load("ifonger.mp3")
     
     mode = True # true:time check , false:distance check(whether user dose medicine)
-    threshold = 9.5 # threshold of ultrasonic sensor value
+    threshold = 7.1 # threshold of ultrasonic sensor value
     isOuting = False
     
     #Connect ID
@@ -185,7 +191,7 @@ if __name__ == '__main__':
              minimumOut = Outinglist[0][1] #To search minimumTime of Outing
              selectedOut = outings[0]
              selectedOutNumber = 0
-             outingFlag = False
+             #outingFlag = False
          else:
              pass
 
@@ -231,6 +237,7 @@ if __name__ == '__main__':
                      outingStackCount[i] = outingStackCount[i] + cnt
                      cnt = 0
                      print(outingStackCount)
+                     #outingFlag=True
              outingStackCount.reverse()
              print(outingStackCount)
          else:
@@ -294,13 +301,17 @@ if __name__ == '__main__':
              else:
                 print("#########################Distance Check Mode#################################")
                 while True:
-                    if(outingFlag):
-                        print("[SYSTEM] Remove Outing Schedule")
-                        result2 = fcm.patch("/"+patient_id+"/OUTING",{selectedOut : None})
-                    #if(False):
-                    if(False): # in actual use, remove "and False"
+                    #if(outingFlag):
+                    #    print("[SYSTEM] Remove Outing Schedule")
+                    #    result2 = fcm.patch("/"+patient_id+"/OUTING",{selectedOut : None})
+                    #
+                    if(us.getDistance()>threshold): # in actual use, remove "and False"
+                    #if(False): # in actual use, remove "and False"
                         result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="약을 복용하였습니다.")
-                        result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="약을 복용하였습니다.")
+                        if(getGuardianToken(fcm,patient_id)==None or getGuardianToken(fcm,patient_id)=="0"):
+                            pass
+                        else:
+                            result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="약을 복용하였습니다.")
                         print("[SYSTEM] taking Alarm is generated in andrioid Device")
                         history = fcm.get("/"+patient_id+"/HISTORY/"+selectedPain,None)
                         if history == None or history == "0":
@@ -314,9 +325,12 @@ if __name__ == '__main__':
                         #add to delete from database
                     else:
                         if(AlarmCount == 3):
-                            if(isExceedtime(nextAlarmTime,5)): # if the medicine is not brought for 5 mintues
+                            if(isExceedtime(nextAlarmTime,2)): # if the medicine is not brought for 5 mintues
                                 result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="[5분 경과] 약을 복용하지 않았습니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="[5분 경과] 약을 복용하지 않았습니다.")
+                                if(getGuardianToken(fcm,patient_id)==None or getGuardianToken(fcm,patient_id)=="0"):
+                                    pass
+                                else:
+                                    result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="[5분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 1 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -324,9 +338,12 @@ if __name__ == '__main__':
                                 print("[SYSTEM] Waiting... Not Taking Phase Exceedtime Minute : 5")
                                 time.sleep(3)
                         elif(AlarmCount == 2) :
-                            if(isExceedtime(nextAlarmTime,10)):
+                            if(isExceedtime(nextAlarmTime,3)):
                                 result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="[10분 경과] 약을 복용하지 않았습니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="[10분 경과] 약을 복용하지 않았습니다.")
+                                if(getGuardianToken(fcm,patient_id)==None or getGuardianToken(fcm,patient_id)=="0"):
+                                    pass
+                                else:
+                                    result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="[10분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 2 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -334,9 +351,12 @@ if __name__ == '__main__':
                                 print("[SYSTEM] Waiting... Not Taking Phase Exceedtime Minute : 10")
                                 time.sleep(3)
                         elif(AlarmCount == 1) :
-                            if(isExceedtime(nextAlarmTime,15)):
+                            if(isExceedtime(nextAlarmTime,4)):
                                 result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="[15분 경과] 약을 복용하지 않았습니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardainToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
+                                if(getGuardianToken(fcm,patient_id)==None or getGuardianToken(fcm,patient_id)=="0"):
+                                    pass
+                                else:
+                                    result = push_service.notify_single_device(registration_id=getGuardainToken(fcm),message_body="[15분 경과] 약을 복용하지 않았습니다.")
                                 print("[SYSTEM] 3 not taking Alarm is generated in android Device")
                                 AlarmCount -= 1
                                 time.sleep(5)
@@ -344,9 +364,12 @@ if __name__ == '__main__':
                                 print("[SYSTEM] Waiting... Not Taking Phase Exceedtime Minute : 15")
                                 time.sleep(3)
                         else:
-                            if(isExceedtime(nextAlarmTime,15)):
+                            if(isExceedtime(nextAlarmTime,4)):
                                 result = push_service.notify_single_device(registration_id=getToken(fcm,patient_id),message_body="미 복용으로 기재합니다.")
-                                result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="미 복용으로 기재합니다.")
+                                if(getGuardianToken(fcm,patient_id)==None or getGuardianToken(fcm,patient_id)=="0"):
+                                    pass
+                                else:
+                                    result = push_service.notify_single_device(registration_id=getGuardianToken(fcm,patient_id),message_body="미 복용으로 기재합니다.")
                                 print("[SYSTEM] really not taking Alarm is generated in android Device")
                                 history = fcm.get("/"+patient_id+"/HISTORY",None)
                                 if history == None or history == "0":
